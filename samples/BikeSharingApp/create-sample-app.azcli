@@ -1,0 +1,27 @@
+# az login
+AKS_NAME=aksdemo01
+AKS_GROUP=$AKS_NAME
+AKS_LOCATION=eastus2
+
+az group create --name $AKS_GROUP --location $AKS_LOCATION
+az aks create \
+    -g $AKS_GROUP -n $AKS_NAME --location $AKS_LOCATION \
+    --disable-rbac --generate-ssh-keys \
+    --node-count 1 \
+    --enable-cluster-autoscaler \
+    --min-count 1 \
+    --max-count 5
+
+
+az aks use-dev-spaces -g $AKS_GROUP -n $AKS_NAME --space master --yes
+
+
+# Replace HostSuffix in charts/values.yaml
+HOST_SUFFIX=$(azds show-context -o json | jq -r '.controller.hostSuffix')
+echo $HOST_SUFFIX
+cp charts/values.orig.yaml charts/values.yaml
+sed -E "s/<REPLACE_ME_WITH_HOST_SUFFIX>/$HOST_SUFFIX/g" charts/values.orig.yaml > charts/values.yaml
+
+# install sample application
+cd charts/
+helm install bikesharing . --dependency-update --namespace master --atomic
